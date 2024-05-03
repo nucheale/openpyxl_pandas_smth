@@ -30,5 +30,3 @@ if id_column:
     print('Выполнено')
 else:
     print('Столбец Код не найден')
-
-
