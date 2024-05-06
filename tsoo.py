@@ -43,6 +43,7 @@ for row in new_sh.iter_rows(min_row=0):
         rows_to_delete.append(row[0].row)
     if 'контейнер выходного дня' in str(row[22].value).lower():
         rows_to_delete.append(row[0].row)
+
 print('2')
 rows_to_delete = list(set(rows_to_delete))
 print(f'2 \n len: {len(rows_to_delete)}')
