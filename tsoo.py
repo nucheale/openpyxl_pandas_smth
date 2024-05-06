@@ -44,19 +44,20 @@ for row in new_sh.iter_rows(min_row=0):
     if 'контейнер выходного дня' in str(row[22].value).lower():
         rows_to_delete.append(row[0].row)
 print('2')
-print(f'len: {len(rows_to_delete)}')
-
 rows_to_delete = list(set(rows_to_delete))
-# counter = 0
+print(f'2 \n len: {len(rows_to_delete)}')
 
 new_sh_2 = new_wb.create_sheet('Итог', 2)
 for row in new_sh.iter_rows(min_row=0):
     if row[0].row not in rows_to_delete:
         row_with_values = [cell.value for cell in row]
         new_sh_2.append(row_with_values)
-    # else:
-    #     counter += 1
 print('3')
 
+new_wb.remove(new_sh)
+
 new_wb.save(f'{files_dir}Итог/Реестр КП {datetime.now().strftime("%d.%m.%Y %H_%M")}.xlsx')
+new_wb.close()
+
+
 print('4')
