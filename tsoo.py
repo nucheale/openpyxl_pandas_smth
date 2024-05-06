@@ -59,4 +59,5 @@ new_wb.remove(new_sh)
 new_wb.save(f'{files_dir}Итог/Реестр КП {datetime.now().strftime("%d.%m.%Y %H_%M")}.xlsx')
 new_wb.close()
 
+
 print('4')
