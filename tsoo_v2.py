@@ -59,6 +59,10 @@ def combine_files(files_dir):
     pivot_table_1 = cleaned_df_1.pivot_table(index='Район', values='Код КП', aggfunc='count').reset_index()
     pivot_table_2 = cleaned_df_2.pivot_table(index='Район', values='Код КП', aggfunc='count').reset_index()
 
+    can_sum_all = cleaned_df_1.groupby('Район')['Количество'].sum().reset_index()
+    can_sum_all.rename(columns={'Количество': 'Количество всего'}, inplace=True)
+    pivot_table_1 = pivot_table_1.merge(can_sum_all, on='Район', how='left')
+
     can_volumes = [0.36, 0.66, 0.75, 0.77, 1.1, 6, 8, 14, 27]
     can_sum = []
     counter = 0
@@ -67,6 +71,11 @@ def combine_files(files_dir):
         can_sum[counter].rename(columns={'Количество': f'Количество {str(e).replace(".", ",")}'}, inplace=True)
         pivot_table_1 = pivot_table_1.merge(can_sum[counter], on='Район', how='left')
         counter += 1
+
+    cleaned_df_1_filtered = cleaned_df_1[~cleaned_df_1['Объём'].isin(can_volumes)]
+    can_sum_others = cleaned_df_1_filtered.groupby('Район')['Количество'].sum().reset_index()
+    can_sum_others.rename(columns={'Количество': 'Количество другие'}, inplace=True)
+    pivot_table_1 = pivot_table_1.merge(can_sum_others, on='Район', how='left')
 
     pivot_table_1.fillna(0, inplace=True)
 
@@ -79,36 +88,6 @@ def combine_files(files_dir):
         pivot_table_2.to_excel(writer, sheet_name='Сводная КП КГО', index=False)
 
     # cleaned_df_1.to_excel(f'{files_dir}Итог/Реестр КП {datetime.now().strftime("%d.%m.%Y %H_%M")}.xlsx', index=False)
-
-
-def delete_rows():
-    print('start')
-    files_dir = 'files/disp/'
-    files = os.listdir(files_dir)
-
-    if not files:
-        sys.exit(1)
-    else:
-        xlsx_files = [e for e in files if e.endswith('.xlsx')]
-        if not xlsx_files:
-            sys.exit(1)
-
-    df = pd.read_excel(f'{files_dir}{xlsx_files[0]}', skiprows=3)
-    print(1)
-
-    schedules_for_delete = ['субботник', 'под загрузку', 'под погрузку', 'установка']
-
-    # cleaned_df_1 = df.loc[~df['График вывоза'].astype(str).str.lower().str.contains('субботник')]
-    cleaned_df_1 = df[~df['График вывоза'].astype(str).apply(
-        lambda x: any(schedule.lower() in x.lower() for schedule in schedules_for_delete))]
-    cleaned_df_1 = cleaned_df_1.loc[~cleaned_df_1['Код КП'].astype(str).str.lower().str.startswith('789')]
-    cleaned_df_1 = cleaned_df_1.loc[~cleaned_df_1['Адрес'].astype(str).str.lower().str.contains('сигнальный')]
-    cleaned_df_1 = cleaned_df_1.loc[~cleaned_df_1['Адрес'].astype(str).str.lower().str.contains('вкп')]
-    cleaned_df_1 = cleaned_df_1.loc[~cleaned_df_1['Примечание'].astype(str).str.lower().str.contains('контейнер выходного дня')]
-
-    print(2)
-    cleaned_df_1.to_excel(f'{files_dir}Итог/Реестр КП test {datetime.now().strftime("%d.%m.%Y %H_%M")}.xlsx', index=False)
-    print(3)
 
 
 combine_files('files/disp/')
