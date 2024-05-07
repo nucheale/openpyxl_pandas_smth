@@ -45,9 +45,9 @@ def combine_files(files_dir):
         lambda x: any(org_type.lower() == x.lower() for org_type in org_types_for_delete))]
 
     # sql start
-    conn = sqlite3.connect('files/test_db.db')
-    cleaned_df_2.to_sql('df_22594', conn, if_exists='replace', index=False)
-    conn.close()
+    # conn = sqlite3.connect('files/test_db.db')
+    # cleaned_df_2.to_sql('df_22594', conn, if_exists='replace', index=False)
+    # conn.close()
     # sql end
 
     cleaned_df_2 = cleaned_df_2.loc[cleaned_df_2['Объём'].astype(float) >= 14]
