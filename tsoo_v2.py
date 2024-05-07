@@ -1,9 +1,10 @@
-import openpyxl as xl
-from openpyxl import Workbook
+# import openpyxl as xl
+# from openpyxl import Workbook
 from datetime import datetime
 import os
 import sys
 import pandas as pd
+# import sqlite3
 
 # Отчет по терсхеме
 
@@ -27,26 +28,57 @@ def combine_files(files_dir):
     combined_df = pd.concat([df1, df2], ignore_index=True)
     print(3)
 
-    schedules_for_delete = ['субботник', 'под загрузку', 'под погрузку', 'установка']
+    schedules_for_delete = ['Субботник', 'Под загрузку', 'Под погрузку', 'Установка']
+    org_types_for_delete = ['Юридическое лицо', 'Бюджетное учреждение', 'СНТ', 'РЖД', '']
 
-    cleaned_df = combined_df[~combined_df['График вывоза'].astype(str).apply(
+    cleaned_df_1 = combined_df[~combined_df['График вывоза'].astype(str).apply(
         lambda x: any(schedule.lower() in x.lower() for schedule in schedules_for_delete))]
-    cleaned_df = cleaned_df.loc[~cleaned_df['Код КП'].astype(str).str.lower().str.startswith('789')]
-    cleaned_df = cleaned_df.loc[~cleaned_df['Адрес'].astype(str).str.lower().str.contains('сигнальный')]
-    cleaned_df = cleaned_df.loc[~cleaned_df['Адрес'].astype(str).str.lower().str.contains('вкп')]
-    cleaned_df = cleaned_df.loc[~cleaned_df['Примечание'].astype(str).str.lower().str.contains('контейнер выходного дня')]
-    cleaned_df['Район'] = cleaned_df['Район'].replace('Невский (Левый)', 'Невский')
-    cleaned_df['Район'] = cleaned_df['Район'].replace('Невский (Правый)', 'Невский')
+    cleaned_df_1 = cleaned_df_1.loc[~cleaned_df_1['Код КП'].astype(str).str.lower().str.startswith('789')]
+    cleaned_df_1 = cleaned_df_1.loc[~cleaned_df_1['Адрес'].astype(str).str.contains('сигнальный', case=False)]
+    cleaned_df_1 = cleaned_df_1.loc[~cleaned_df_1['Адрес'].astype(str).str.contains('вкп', case=False)]
+    cleaned_df_1 = cleaned_df_1.loc[~cleaned_df_1['Примечание'].astype(str).str.contains('контейнер выходного дня', case=False)]
+    cleaned_df_1['Район'] = cleaned_df_1['Район'].replace('Невский (Левый)', 'Невский')
+    cleaned_df_1['Район'] = cleaned_df_1['Район'].replace('Невский (Правый)', 'Невский')
 
+    cleaned_df_2 = cleaned_df_1.loc[cleaned_df_1['Тариф'].astype(str).str.lower() != 'факт']
+    cleaned_df_2 = cleaned_df_2.loc[~cleaned_df_2['Категория'].astype(str).apply(
+        lambda x: any(org_type.lower() == x.lower() for org_type in org_types_for_delete))]
+    # conn = sqlite3.connect('/files/test_db.db')
+    # conn = sqlite3.connect('test_db.db')
+    # conn = sqlite3.connect("C:\Users\admin\PycharmProjects\pythonProject1\files\test_db.db")
+    # cleaned_df_2.to_sql('df_22594', conn, if_exists='replace', index=False)
+
+    cleaned_df_2 = cleaned_df_2.loc[cleaned_df_2['Объём'].astype(float) >= 14]
+
+    # cleaned_df_2.to_sql('df_52', conn, if_exists='replace', index=False)
+    # conn.close()
+    cleaned_df_2 = cleaned_df_2.loc[~cleaned_df_2['Адрес'].astype(str).str.contains('смет', case=False)]
+    cleaned_df_2 = cleaned_df_2.drop_duplicates(subset=['Код КП'])
     print(4)
 
-    pivot_table = cleaned_df.pivot_table(index='Район', values='Код КП', aggfunc='count').reset_index()
+    pivot_table_1 = cleaned_df_1.pivot_table(index='Район', values='Код КП', aggfunc='count').reset_index()
+    pivot_table_2 = cleaned_df_2.pivot_table(index='Район', values='Код КП', aggfunc='count').reset_index()
+
+    can_volumes = [0.36, 0.66, 0.75, 0.77, 1.1, 6, 8, 14, 27]
+    can_sum = []
+    counter = 0
+    for e in can_volumes:
+        can_sum.append(cleaned_df_1[cleaned_df_1['Объём'] == e].groupby('Район')['Количество'].sum().reset_index())
+        can_sum[counter].rename(columns={'Количество': f'Количество {str(e).replace(".", ",")}'}, inplace=True)
+        pivot_table_1 = pivot_table_1.merge(can_sum[counter], on='Район', how='left')
+        counter += 1
+
+    pivot_table_1.fillna(0, inplace=True)
+
+    print(5)
 
     with pd.ExcelWriter(f'{files_dir}Итог/Реестр КП {datetime.now().strftime("%d.%m.%Y %H_%M")}.xlsx') as writer:
-        cleaned_df.to_excel(writer, sheet_name='Реестр КП', index=False)
-        pivot_table.to_excel(writer, sheet_name='Сводная', index=False)
+        cleaned_df_1.to_excel(writer, sheet_name='Реестр КГ', index=False)
+        pivot_table_1.to_excel(writer, sheet_name='Сводная КГ', index=False)
+        cleaned_df_2.to_excel(writer, sheet_name='Реестр КП КГО', index=False)
+        pivot_table_2.to_excel(writer, sheet_name='Сводная КП КГО', index=False)
 
-    # cleaned_df.to_excel(f'{files_dir}Итог/Реестр КП {datetime.now().strftime("%d.%m.%Y %H_%M")}.xlsx', index=False)
+    # cleaned_df_1.to_excel(f'{files_dir}Итог/Реестр КП {datetime.now().strftime("%d.%m.%Y %H_%M")}.xlsx', index=False)
 
 
 def delete_rows():
@@ -66,18 +98,17 @@ def delete_rows():
 
     schedules_for_delete = ['субботник', 'под загрузку', 'под погрузку', 'установка']
 
-    # cleaned_df = df.loc[~df['График вывоза'].astype(str).str.lower().str.contains('субботник')]
-    cleaned_df = df[~df['График вывоза'].astype(str).apply(
+    # cleaned_df_1 = df.loc[~df['График вывоза'].astype(str).str.lower().str.contains('субботник')]
+    cleaned_df_1 = df[~df['График вывоза'].astype(str).apply(
         lambda x: any(schedule.lower() in x.lower() for schedule in schedules_for_delete))]
-    cleaned_df = cleaned_df.loc[~cleaned_df['Код КП'].astype(str).str.lower().str.startswith('789')]
-    cleaned_df = cleaned_df.loc[~cleaned_df['Адрес'].astype(str).str.lower().str.contains('сигнальный')]
-    cleaned_df = cleaned_df.loc[~cleaned_df['Адрес'].astype(str).str.lower().str.contains('вкп')]
-    cleaned_df = cleaned_df.loc[~cleaned_df['Примечание'].astype(str).str.lower().str.contains('контейнер выходного дня')]
+    cleaned_df_1 = cleaned_df_1.loc[~cleaned_df_1['Код КП'].astype(str).str.lower().str.startswith('789')]
+    cleaned_df_1 = cleaned_df_1.loc[~cleaned_df_1['Адрес'].astype(str).str.lower().str.contains('сигнальный')]
+    cleaned_df_1 = cleaned_df_1.loc[~cleaned_df_1['Адрес'].astype(str).str.lower().str.contains('вкп')]
+    cleaned_df_1 = cleaned_df_1.loc[~cleaned_df_1['Примечание'].astype(str).str.lower().str.contains('контейнер выходного дня')]
 
     print(2)
-    cleaned_df.to_excel(f'{files_dir}Итог/Реестр КП test {datetime.now().strftime("%d.%m.%Y %H_%M")}.xlsx', index=False)
+    cleaned_df_1.to_excel(f'{files_dir}Итог/Реестр КП test {datetime.now().strftime("%d.%m.%Y %H_%M")}.xlsx', index=False)
     print(3)
 
 
 combine_files('files/disp/')
-# delete_rows()
