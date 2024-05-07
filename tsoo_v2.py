@@ -4,7 +4,7 @@ from datetime import datetime
 import os
 import sys
 import pandas as pd
-# import sqlite3
+import sqlite3
 
 # Отчет по терсхеме
 
@@ -43,15 +43,14 @@ def combine_files(files_dir):
     cleaned_df_2 = cleaned_df_1.loc[cleaned_df_1['Тариф'].astype(str).str.lower() != 'факт']
     cleaned_df_2 = cleaned_df_2.loc[~cleaned_df_2['Категория'].astype(str).apply(
         lambda x: any(org_type.lower() == x.lower() for org_type in org_types_for_delete))]
-    # conn = sqlite3.connect('/files/test_db.db')
-    # conn = sqlite3.connect('test_db.db')
-    # conn = sqlite3.connect("C:\Users\admin\PycharmProjects\pythonProject1\files\test_db.db")
-    # cleaned_df_2.to_sql('df_22594', conn, if_exists='replace', index=False)
+
+    # sql start
+    conn = sqlite3.connect('files/test_db.db')
+    cleaned_df_2.to_sql('df_22594', conn, if_exists='replace', index=False)
+    conn.close()
+    # sql end
 
     cleaned_df_2 = cleaned_df_2.loc[cleaned_df_2['Объём'].astype(float) >= 14]
-
-    # cleaned_df_2.to_sql('df_52', conn, if_exists='replace', index=False)
-    # conn.close()
     cleaned_df_2 = cleaned_df_2.loc[~cleaned_df_2['Адрес'].astype(str).str.contains('смет', case=False)]
     cleaned_df_2 = cleaned_df_2.drop_duplicates(subset=['Код КП'])
     print(4)
